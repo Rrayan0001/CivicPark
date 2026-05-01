@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { computePHashes } from '@/lib/ai/phash'
 import { checkTampering } from '@/lib/ai/tampering'
 import { findDuplicate } from '@/lib/ai/duplicate'
@@ -22,15 +22,33 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Service-role client for storage — bypasses RLS so uploads always succeed
+  const adminSupabase = await createServiceClient()
+
   const formData = await request.formData()
   const category = formData.get('category') as string | null
   const address  = formData.get('address')  as string | null
   const lat      = formData.get('lat')      as string | null
   const lng      = formData.get('lng')      as string | null
+  const gpsAccuracy = formData.get('gps_accuracy') as string | null
+  const gpsCapturedAt = formData.get('gps_captured_at') as string | null
+  const gpsQuality = formData.get('gps_quality') as string | null
   const note     = formData.get('note')     as string | null
   const photos   = formData.getAll('photos') as File[]
 
   if (!category) return NextResponse.json({ error: 'Category is required' }, { status: 400 })
+
+  const parsedLat = lat ? Number.parseFloat(lat) : Number.NaN
+  const parsedLng = lng ? Number.parseFloat(lng) : Number.NaN
+  const parsedAccuracy = gpsAccuracy ? Number.parseFloat(gpsAccuracy) : Number.NaN
+
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+    return NextResponse.json({ error: 'Live GPS coordinates are required' }, { status: 400 })
+  }
+
+  if (!Number.isFinite(parsedAccuracy) || parsedAccuracy > 60) {
+    return NextResponse.json({ error: 'GPS accuracy is too low. Please retry closer to the location.' }, { status: 400 })
+  }
 
   const capturedAt = new Date().toISOString()
 
@@ -44,12 +62,14 @@ export async function POST(request: NextRequest) {
     const buf  = Buffer.from(await photo.arrayBuffer())
     photoBuffers.push(buf)
 
-    const { error: uploadError } = await (supabase as AnyRecord)
+    const { error: uploadError } = await (adminSupabase as AnyRecord)
       .storage.from('evidence')
       .upload(path, buf, { contentType: photo.type, upsert: false })
 
-    if (!uploadError) {
-      const { data: urlData } = (supabase as AnyRecord)
+    if (uploadError) {
+      console.error('Failed to upload photo:', uploadError)
+    } else {
+      const { data: urlData } = (adminSupabase as AnyRecord)
         .storage.from('evidence').getPublicUrl(path)
       if (urlData?.publicUrl) photoUrls.push(urlData.publicUrl)
     }
@@ -67,10 +87,24 @@ export async function POST(request: NextRequest) {
       reporter_id:   user.id,
       category:      CATEGORY_MAP[category] ?? category,
       address:       address || null,
-      location:      lat && lng ? `POINT(${lng} ${lat})` : `POINT(0 0)`,
+      location:      `POINT(${parsedLng} ${parsedLat})`,
       description:   note || null,
       photo_urls:    photoUrls,
       captured_at:   capturedAt,
+      device_metadata: {
+        capture_method: 'in_app_camera',
+        user_agent: request.headers.get('user-agent'),
+        location: {
+          source: 'browser_geolocation',
+          latitude: parsedLat,
+          longitude: parsedLng,
+          accuracy_meters: parsedAccuracy,
+          quality: gpsQuality ?? 'unknown',
+          captured_at: gpsCapturedAt,
+          submitted_at: capturedAt,
+          address_hint: address || null,
+        },
+      },
       evidence_hash: evidenceHash,
       status:        'pending_ai',
     })
@@ -113,8 +147,8 @@ export async function POST(request: NextRequest) {
         supabase,
         plate:      null,   // No ALPR — plate detection skipped (officers check manually)
         phashes,
-        lat:        parseFloat(lat ?? '0'),
-        lng:        parseFloat(lng ?? '0'),
+        lat:        parsedLat,
+        lng:        parsedLng,
         capturedAt,
         reportId,
       })

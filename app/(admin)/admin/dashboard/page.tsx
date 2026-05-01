@@ -162,7 +162,7 @@ function ZoneHeatmap({ hotspots }: { hotspots: { lat: number, lng: number, count
   ];
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '20px 22px', boxShadow: '0 1px 4px rgba(14,26,43,0.04)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+    <div className="admin-heatmap" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '20px 22px', boxShadow: '0 1px 4px rgba(14,26,43,0.04)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, opacity: 0.05, backgroundImage: 'linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 }}>
@@ -199,8 +199,12 @@ function ZoneHeatmap({ hotspots }: { hotspots: { lat: number, lng: number, count
 
 const STATUS_ICON = {
   approved: <path d="m9 12 2 2 4-4"/>,
+  challan_issued: <path d="m9 12 2 2 4-4"/>,
   rejected: <path d="m15 9-6 6M9 9l6 6"/>,
-  pending:  <path d="M12 5v7l4 2"/>,
+  auto_rejected_duplicate: <path d="m15 9-6 6M9 9l6 6"/>,
+  auto_rejected_low_quality: <path d="m15 9-6 6M9 9l6 6"/>,
+  pending_ai: <path d="M12 5v7l4 2"/>,
+  pending_review: <path d="M12 5v7l4 2"/>,
 }
 
 export default async function AdminDashboardPage() {
@@ -210,14 +214,14 @@ export default async function AdminDashboardPage() {
 
   const [reportsRes, approvedRes, rejectedRes, pendingRes, citizensRes, officersRes, profileRes, recentRes, oldestPendingRes, recent24hRes, hotspotsRes] = await Promise.all([
     supabase.from('reports').select('id', { count: 'exact', head: true }),
-    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
-    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
-    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).in('status', ['approved', 'challan_issued']),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).in('status', ['rejected', 'auto_rejected_duplicate', 'auto_rejected_low_quality']),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).in('status', ['pending_ai', 'pending_review']),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'citizen'),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'officer'),
     supabase.from('profiles').select('full_name').eq('id', user?.id ?? '').maybeSingle(),
     supabase.from('reports').select('id, status, category, address, fine_amount, created_at').order('created_at', { ascending: false }).limit(6),
-    supabase.from('reports').select('created_at').eq('status', 'pending').order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('reports').select('created_at').in('status', ['pending_ai', 'pending_review']).order('created_at', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('reports').select('created_at').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
     (supabase.rpc as any)('get_hotspots', { days_back: 1 }),
   ])
@@ -249,7 +253,7 @@ export default async function AdminDashboardPage() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(10px); }
@@ -270,7 +274,7 @@ export default async function AdminDashboardPage() {
       `}} />
 
       {/* ── Sidebar ── */}
-      <aside style={{
+      <aside className="admin-sidebar" style={{
         background: 'var(--surface)', borderRight: '1px solid var(--line)', padding: '18px 14px',
         display: 'flex', flexDirection: 'column', gap: 4, height: '100vh', position: 'sticky', top: 0,
       }}>
@@ -339,7 +343,7 @@ export default async function AdminDashboardPage() {
       {/* ── Main ── */}
       <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Top bar */}
-        <div style={{
+        <div className="admin-topbar" style={{
           height: 56, borderBottom: '1px solid var(--line)', background: 'var(--surface)',
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16,
           position: 'sticky', top: 0, zIndex: 4,
@@ -356,13 +360,13 @@ export default async function AdminDashboardPage() {
             <span style={{ fontSize: 11, color: 'var(--status-approved)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>LIVE</span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16, fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+          <div className="admin-hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16, fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c-1.5 0-2.5-2-2.5-2a3 3 0 1 0-6 0s-1 2-2.5 2"/><path d="M12 15V3"/><path d="M12 3a2 2 0 0 1 2 2v2"/><path d="M12 3a2 2 0 0 0-2 2v2"/></svg>
             28°C · AQI 142
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 12, color: 'var(--ink-4)', marginRight: 12, cursor: 'text' }}>
+            <div className="admin-topbar-search" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 12, color: 'var(--ink-4)', marginRight: 12, cursor: 'text' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               Search... <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 4px', background: 'var(--surface)', borderRadius: 4, marginLeft: 16 }}>⌘K</kbd>
             </div>
@@ -377,7 +381,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div style={{ padding: '28px 32px 80px' }}>
+        <div className="admin-page-content" style={{ padding: '28px 32px 80px' }}>
           {/* Page header */}
           <div style={{ marginBottom: 28, position: 'relative' }}>
             <div style={{ position: 'absolute', right: 0, top: 0, opacity: 0.05, pointerEvents: 'none' }}>
@@ -398,7 +402,7 @@ export default async function AdminDashboardPage() {
           <TodayPulseStrip recent24h={recent24h} />
 
           {/* ── KPI grid ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="admin-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
             {([
               {
                 label: 'Reports Filed', value: totalReports, sub: 'all time', spark: sparkReports, color: 'var(--primary)',
@@ -444,7 +448,7 @@ export default async function AdminDashboardPage() {
           </div>
 
           {/* ── Second row: Map + SLA + Fine estimate ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.2fr', gap: 14, marginBottom: 24 }}>
+          <div className="admin-row-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.2fr', gap: 14, marginBottom: 24 }}>
             <ZoneHeatmap hotspots={hotspots} />
             <SlaCard oldestPending={oldestPending} />
             <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 1px 4px rgba(14,26,43,0.04)' }}>
@@ -460,7 +464,7 @@ export default async function AdminDashboardPage() {
           </div>
 
           {/* ── Activity feed & Leaderboard ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
+          <div className="admin-feed-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
             {/* Activity feed */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(14,26,43,0.04)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 22px', borderBottom: '1px solid var(--line)' }}>
@@ -484,10 +488,14 @@ export default async function AdminDashboardPage() {
                   {recentReports.map((item, i) => {
                     const statusMeta = {
                       approved: { bg: 'var(--status-approved-bg)', color: 'var(--status-approved)', label: 'Approved' },
+                      challan_issued: { bg: 'var(--status-approved-bg)', color: 'var(--status-approved)', label: 'Challan' },
                       rejected: { bg: 'var(--status-rejected-bg)', color: 'var(--status-rejected)', label: 'Rejected' },
-                      pending:  { bg: 'var(--status-pending-bg)',  color: 'var(--status-pending)',  label: 'Pending'  },
+                      auto_rejected_duplicate: { bg: 'var(--status-rejected-bg)', color: 'var(--status-rejected)', label: 'Duplicate' },
+                      auto_rejected_low_quality: { bg: 'var(--status-rejected-bg)', color: 'var(--status-rejected)', label: 'Low quality' },
+                      pending_ai: { bg: 'var(--status-pending-bg)', color: 'var(--status-pending)', label: 'AI pending' },
+                      pending_review: { bg: 'var(--status-review-bg)', color: 'var(--status-review)', label: 'Review' },
                     }[item.status] ?? { bg: 'var(--surface-2)', color: 'var(--ink-3)', label: item.status }
-                    const icon = STATUS_ICON[item.status as keyof typeof STATUS_ICON] ?? STATUS_ICON.pending
+                    const icon = STATUS_ICON[item.status as keyof typeof STATUS_ICON] ?? STATUS_ICON.pending_review
 
                     return (
                       <div key={item.id} style={{
@@ -512,7 +520,7 @@ export default async function AdminDashboardPage() {
                               display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 7px', borderRadius: 999,
                               background: statusMeta.bg, color: statusMeta.color, fontSize: 10.5, fontWeight: 600, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em',
                             }}><span style={{ width: 5, height: 5, borderRadius: 99, background: 'currentColor', flexShrink: 0 }} />{statusMeta.label}</span>
-                            {item.category && <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{item.category.replace('_', ' ')}</span>}
+                            {item.category && <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{item.category.replace(/_/g, ' ')}</span>}
                           </div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 4, display: 'flex', gap: 12 }}>
                             <span>{item.address ?? '—'}</span>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -40,8 +41,35 @@ const NAV_ITEMS = [
 export function CitizenBottomNav() {
   const pathname = usePathname()
   const router   = useRouter()
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPendingHref(null)
+  }, [pathname])
+
+  useEffect(() => {
+    const warmRoutes = () => {
+      for (const item of NAV_ITEMS) {
+        router.prefetch(item.href)
+      }
+    }
+
+    const requestIdleCallback = window.requestIdleCallback
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(warmRoutes, { timeout: 1200 })
+      return () => window.cancelIdleCallback(id)
+    }
+
+    const id = globalThis.setTimeout(warmRoutes, 350)
+    return () => globalThis.clearTimeout(id)
+  }, [router])
+
+  function warmRoute(href: string) {
+    router.prefetch(href)
+  }
 
   async function handleSignOut() {
+    setPendingHref('/')
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/')
@@ -66,6 +94,11 @@ export function CitizenBottomNav() {
           <Link
             key={item.href}
             href={item.href}
+            className="nav-link-surface"
+            data-pending={pendingHref === item.href}
+            onClick={() => setPendingHref(item.href)}
+            onMouseEnter={() => warmRoute(item.href)}
+            onTouchStart={() => warmRoute(item.href)}
             style={{
               flex: 1,
               display: 'flex',
@@ -78,6 +111,7 @@ export function CitizenBottomNav() {
               textDecoration: 'none',
               color: active ? 'var(--ink)' : 'var(--muted)',
               transition: 'color 0.15s ease',
+              zIndex: 0,
             }}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +125,8 @@ export function CitizenBottomNav() {
       {/* Sign out */}
       <button
         onClick={handleSignOut}
+        className="nav-link-surface"
+        data-pending={pendingHref === '/'}
         style={{
           flex: 1,
           display: 'flex',
@@ -106,6 +142,7 @@ export function CitizenBottomNav() {
           color: 'var(--muted)',
           transition: 'color 0.15s ease',
           padding: 0,
+          zIndex: 0,
         }}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

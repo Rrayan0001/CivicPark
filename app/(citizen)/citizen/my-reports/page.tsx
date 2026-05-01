@@ -63,6 +63,18 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
+function previewImage(url: string | undefined) {
+  if (!url) return null
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="Evidence preview"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  )
+}
+
 export default async function MyReportsPage({
   searchParams,
 }: {
@@ -158,18 +170,51 @@ export default async function MyReportsPage({
           <Link
             key={r.id}
             href={`/citizen/report/${r.id}`}
-            style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 10, padding: 12, display: 'flex', gap: 12, textDecoration: 'none', color: 'inherit' }}
+            style={{
+              background: 'var(--bg)',
+              border: '1px solid var(--line)',
+              borderRadius: 14,
+              padding: 12,
+              display: 'flex',
+              gap: 14,
+              textDecoration: 'none',
+              color: 'inherit',
+              alignItems: 'stretch',
+              boxShadow: '0 1px 2px rgba(14,26,43,0.03)',
+            }}
           >
-            <div style={{ width: 76, height: 76, borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)', overflow: 'hidden', position: 'relative', background: 'var(--surface-2)' }}>
+            <div style={{ width: 96, height: 96, borderRadius: 12, flexShrink: 0, border: '1px solid var(--line)', overflow: 'hidden', position: 'relative', background: 'var(--surface-2)' }}>
               {r.photo_urls?.[0] ? (
-                <Image src={r.photo_urls[0]} alt="Evidence" fill style={{ objectFit: 'cover' }} unoptimized />
+                <>
+                  {previewImage(r.photo_urls[0])}
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.28) 100%)' }} />
+                  <div style={{
+                    position: 'absolute', left: 8, bottom: 8,
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(255,255,255,0.8)',
+                    borderRadius: 999, padding: '3px 7px',
+                    fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink)',
+                  }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    {r.photo_urls.length}
+                  </div>
+                </>
               ) : (
-                <Image src="/images/1.png" alt="Evidence" fill style={{ objectFit: 'cover' }} />
+                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--surface-3)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                    <line x1="3" y1="3" x2="21" y2="21"/>
+                  </svg>
+                </div>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
                   {CATEGORY_LABELS[r.category] ?? r.category}
                 </span>
                 <StatusPill status={r.status} />
@@ -183,6 +228,9 @@ export default async function MyReportsPage({
               )}
               <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.address ?? 'Location not recorded'}
+              </p>
+              <p style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 7, lineHeight: 1.45 }}>
+                {r.photo_urls?.length ? 'Evidence attached. Tap to review full report.' : 'No photo preview saved for this report.'}
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
                 <span>{formatRelative(r.created_at)}</span>

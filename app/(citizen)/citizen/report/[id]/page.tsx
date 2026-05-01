@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Report, AuditLog } from '@/types/database'
+import type { Json, Report, AuditLog } from '@/types/database'
 
 const CATEGORY_LABELS: Record<string, string> = {
   no_parking:       'No parking',
@@ -41,6 +41,44 @@ function formatDate(iso: string) {
   })
 }
 
+function evidenceImage(url: string, alt: string) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={alt}
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  )
+}
+
+type LocationMeta = {
+  accuracy_meters?: number
+  quality?: string
+  captured_at?: string
+  address_hint?: string | null
+  road?: string | null
+  area?: string | null
+  city?: string | null
+  postcode?: string | null
+}
+
+function getLocationMeta(deviceMetadata: Json | null): LocationMeta | null {
+  if (!deviceMetadata || typeof deviceMetadata !== 'object' || Array.isArray(deviceMetadata)) return null
+  const root = deviceMetadata as Record<string, Json | undefined>
+  const location = root.location
+  if (!location || typeof location !== 'object' || Array.isArray(location)) return null
+  return location as LocationMeta
+}
+
+function labelGpsQuality(quality?: string) {
+  if (quality === 'high') return 'High confidence'
+  if (quality === 'medium') return 'Verified'
+  if (quality === 'low') return 'Broad fix'
+  if (quality === 'stale') return 'Stale fix'
+  return 'Recorded'
+}
+
 export default async function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -66,6 +104,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
 
   const statusColor = STATUS_COLORS[r.status] ?? { bg: '#F4F4EF', color: '#5B6878' }
   const isChallan = r.status === 'challan_issued' || r.status === 'approved'
+  const locationMeta = getLocationMeta(r.device_metadata)
+  const heroImage = r.photo_urls?.[0] ?? null
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
@@ -103,13 +143,30 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           </div>
         </section>
 
+        {heroImage && (
+          <section style={{ padding: '16px 18px 0' }}>
+            <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--line)', background: '#09111B' }}>
+              <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#09111B' }}>
+                {evidenceImage(heroImage, 'Primary evidence')}
+                <div style={{ position: 'absolute', left: 12, bottom: 12, display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.92)', padding: '5px 9px', borderRadius: 999, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  Main evidence
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Photos */}
         {r.photo_urls?.length > 0 && (
           <section style={{ padding: '16px 0 8px' }}>
             <div style={{ display: 'flex', gap: 8, padding: '0 18px', overflowX: 'auto', scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
               {r.photo_urls.map((url, i) => (
-                <div key={i} style={{ flexShrink: 0, width: 240, height: 180, borderRadius: 10, border: '1px solid var(--line)', overflow: 'hidden', scrollSnapAlign: 'center', position: 'relative' }}>
-                  <Image src={url} alt={`Photo ${i + 1}`} fill style={{ objectFit: 'cover' }} unoptimized />
+                <div key={i} style={{ flexShrink: 0, width: 120, height: 88, borderRadius: 10, border: '1px solid var(--line)', overflow: 'hidden', scrollSnapAlign: 'center', position: 'relative', background: '#09111B' }}>
+                  {evidenceImage(url, `Photo ${i + 1}`)}
                   <span style={{ position: 'absolute', bottom: 8, left: 8, fontFamily: 'var(--font-mono)', fontSize: 10, background: 'rgba(255,255,255,0.88)', padding: '3px 7px', borderRadius: 4 }}>
                     {i + 1} / {r.photo_urls.length}
                   </span>
@@ -119,6 +176,69 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
             <p style={{ textAlign: 'center', paddingTop: 10, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>
               {r.photo_urls.length} photo{r.photo_urls.length !== 1 ? 's' : ''} · GPS-locked
             </p>
+          </section>
+        )}
+
+        <section style={{ padding: '10px 18px 0' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <h3 style={{ fontSize: 13.5, fontWeight: 600 }}>Report summary</h3>
+            </div>
+            <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+              {[
+                { label: 'Submitted', value: formatDate(r.created_at) },
+                { label: 'Captured', value: formatDate(r.captured_at) },
+                { label: 'Location', value: r.address ?? locationMeta?.address_hint ?? 'Not recorded' },
+                { label: 'GPS quality', value: labelGpsQuality(locationMeta?.quality) },
+                { label: 'GPS accuracy', value: locationMeta?.accuracy_meters ? `±${locationMeta.accuracy_meters}m` : 'Not available' },
+                { label: 'Evidence hash', value: r.evidence_hash ? `${r.evidence_hash.slice(0, 12)}...` : 'Not available' },
+              ].map((row, index, arr) => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingBottom: index < arr.length - 1 ? 12 : 0, borderBottom: index < arr.length - 1 ? '1px solid var(--line-2)' : 'none' }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>{row.label}</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--ink)', textAlign: 'right', lineHeight: 1.45 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {(r.description || locationMeta) && (
+          <section style={{ padding: '12px 18px 0' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+                <h3 style={{ fontSize: 13.5, fontWeight: 600 }}>Evidence details</h3>
+              </div>
+              <div style={{ padding: 16, display: 'grid', gap: 14 }}>
+                {r.description && (
+                  <div>
+                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>Reporter note</div>
+                    <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{r.description}</p>
+                  </div>
+                )}
+                {locationMeta && (
+                  <div>
+                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>Location evidence</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      {[
+                        { label: 'Captured at', value: locationMeta.captured_at ? formatDate(locationMeta.captured_at) : 'Not available' },
+                        { label: 'Road', value: locationMeta.road ?? 'Not captured' },
+                        { label: 'Area', value: locationMeta.area ?? 'Not captured' },
+                        { label: 'City', value: locationMeta.city ?? 'Not captured' },
+                      ].map((item) => (
+                        <div key={item.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 11px' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--muted)', marginBottom: 5 }}>
+                            {item.label}
+                          </div>
+                          <div style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.45 }}>
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
         )}
 

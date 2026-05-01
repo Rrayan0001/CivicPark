@@ -29,9 +29,9 @@ export default async function AdminOfficersPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Sidebar */}
-      <aside style={{ background: 'var(--surface)', borderRight: '1px solid var(--line)', padding: '18px 14px', display: 'flex', flexDirection: 'column', gap: 4, height: '100vh', position: 'sticky', top: 0 }}>
+      <aside className="admin-sidebar" style={{ background: 'var(--surface)', borderRight: '1px solid var(--line)', padding: '18px 14px', display: 'flex', flexDirection: 'column', gap: 4, height: '100vh', position: 'sticky', top: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px 18px', borderBottom: '1px solid var(--line)', marginBottom: 14 }}>
           <div style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--primary)', color: 'var(--on-primary)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14 }}>CP</div>
           <div>
@@ -54,13 +54,13 @@ export default async function AdminOfficersPage() {
 
       <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Top bar */}
-        <div style={{ height: 56, borderBottom: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 16, position: 'sticky', top: 0, zIndex: 4 }}>
+        <div className="admin-topbar" style={{ height: 56, borderBottom: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 16, position: 'sticky', top: 0, zIndex: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)' }}>
             <span>Admin</span><span>›</span><strong style={{ color: 'var(--ink)' }}>Officers</strong>
           </div>
         </div>
 
-        <div style={{ padding: '26px 32px 80px' }}>
+        <div className="admin-page-content" style={{ padding: '26px 32px 80px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 24 }}>
             <div>
               <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', margin: 0 }}>Officers</h1>
@@ -78,21 +78,20 @@ export default async function AdminOfficersPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
-                    {['Officer', 'Role', 'Joined', ''].map(h => (
+                    {['Officer', 'Role', 'Joined', 'Actions'].map(h => (
                       <th key={h} style={{ background: 'var(--surface-2)', textAlign: 'left', fontWeight: 500, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {officers.map(row => (
-                    <tr key={row.id} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <tr key={row.id} className="admin-row-hover" style={{ cursor: 'pointer' }}>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 999, background: 'var(--primary-soft)', color: 'var(--primary-ink)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>{initials(row.full_name)}</div>
                           <div style={{ fontWeight: 500 }}>{row.full_name ?? '—'}</div>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)', color: 'var(--ink-3)' }}>—</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-2)', border: '1px solid var(--line)' }}>{row.role.toUpperCase()}</span>
                       </td>

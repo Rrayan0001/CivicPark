@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 const NAV_ITEMS = [
   {
@@ -55,15 +56,87 @@ const NAV_ITEMS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPendingHref(null)
+  }, [pathname])
+
+  useEffect(() => {
+    const warmRoutes = () => {
+      for (const item of NAV_ITEMS) {
+        router.prefetch(item.href)
+      }
+    }
+
+    const requestIdleCallback = window.requestIdleCallback
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(warmRoutes, { timeout: 1200 })
+      return () => window.cancelIdleCallback(id)
+    }
+
+    const id = globalThis.setTimeout(warmRoutes, 350)
+    return () => globalThis.clearTimeout(id)
+  }, [router])
+
+  function warmRoute(href: string) {
+    router.prefetch(href)
+  }
 
   return (
     <>
       <style>{`
         .admin-bottom-nav { display: flex; }
         .admin-content-pad { padding-bottom: 64px; }
+        .admin-row-hover:hover { background: var(--surface-2); }
+        
         @media (min-width: 768px) {
           .admin-bottom-nav { display: none; }
           .admin-content-pad { padding-bottom: 0; }
+        }
+        
+        @media (max-width: 767px) {
+          .admin-layout-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .admin-sidebar {
+            display: none !important;
+          }
+          .admin-topbar {
+            padding: 0 16px !important;
+            overflow-x: auto;
+            /* Allow scrolling horizontally if items overflow */
+          }
+          .admin-page-content {
+            padding: 20px 16px 88px !important;
+          }
+          .admin-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .admin-row-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .admin-feed-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .admin-hide-mobile {
+            display: none !important;
+          }
+          /* Ensure SVGs inside heatmaps scale down */
+          .admin-heatmap svg {
+            width: 100% !important;
+            height: auto !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .admin-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .admin-topbar-search {
+            display: none !important;
+          }
         }
       `}</style>
 
@@ -87,6 +160,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               key={item.href}
               href={item.href}
+              className="nav-link-surface"
+              data-pending={pendingHref === item.href}
+              onClick={() => setPendingHref(item.href)}
+              onMouseEnter={() => warmRoute(item.href)}
+              onTouchStart={() => warmRoute(item.href)}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -99,6 +177,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 textDecoration: 'none',
                 color: active ? 'var(--ink)' : 'var(--muted)',
                 transition: 'color 0.15s ease',
+                zIndex: 0,
               }}
             >
               <svg

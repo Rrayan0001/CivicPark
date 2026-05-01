@@ -3,7 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const { supabaseResponse, user } = await updateSession(request)
 
@@ -11,17 +11,16 @@ export async function middleware(request: NextRequest) {
   const isCitizenRoute = pathname.startsWith('/citizen') || pathname.startsWith('/report')
   const isOfficerRoute = pathname.startsWith('/officer')
   const isAdminRoute   = pathname.startsWith('/admin')
-  const isProtected    = isCitizenRoute || isOfficerRoute || isAdminRoute
+  const isAdminLoginRoute = pathname === '/admin/login'
+  const isProtected    = isCitizenRoute || isOfficerRoute || (isAdminRoute && !isAdminLoginRoute)
 
-  // Not logged in — redirect to login
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
+    url.pathname = isAdminRoute ? '/admin/login' : '/auth/login'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
 
-  // Logged in — check role for privileged routes
   if (user && (isOfficerRoute || isAdminRoute)) {
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,18 +39,28 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
 
-    const role = (profileRes.data as { role: string } | null)?.role ?? 'citizen'
+    const role = (profileRes.data as { role: Database['public']['Enums']['user_role'] } | null)?.role ?? 'citizen'
 
     if (isAdminRoute && role !== 'admin') {
-      return NextResponse.redirect(new URL('/citizen/my-reports', request.url))
+      if (isAdminLoginRoute) {
+        return supabaseResponse
+      }
+
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/login'
+      url.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(url)
     }
 
     if (isOfficerRoute && role === 'citizen') {
       return NextResponse.redirect(new URL('/citizen/my-reports', request.url))
     }
+
+    if (pathname === '/admin/login' && role === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    }
   }
 
-  // Logged in, visiting auth pages — redirect to dashboard
   if (user && isAuthRoute && pathname !== '/auth/callback') {
     return NextResponse.redirect(new URL('/citizen/my-reports', request.url))
   }
@@ -61,6 +70,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/|__nextjs_font|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf)$).*)',
   ],
 }
