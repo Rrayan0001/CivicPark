@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm create *)",
+      "Bash(pnpm add *)",
+      "Bash(brew install *)",
+      "Bash(supabase --version)",
+      "Bash(supabase init *)",
+      "Bash(pnpm tsc *)",
+      "Bash(pnpm build *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python3 -c ' *)",
+      "Bash(pnpm dev *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/auth/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/auth/signup)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/stats)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/leaderboard)",
+      "Bash(kill 72736)",
+      "Bash(openssl rand *)",
+      "Bash(lsof -ti:3000,3001)"
+    ]
+  }
+}

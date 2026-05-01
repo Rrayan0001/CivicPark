@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+.vercel/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+ai-service/__pycache__/
+ai-service/*.pyc
+ai-service/*.pyo
+ai-service/.venv/
+ai-service/venv/
+ai-service/.pytest_cache/
+ai-service/dist/
+ai-service/*.egg-info/
+__pycache__/
+*.pyc
+.venv/
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Build artifacts
+*.tsbuildinfo
+next-env.d.ts
