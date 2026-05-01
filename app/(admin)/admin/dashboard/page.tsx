@@ -367,6 +367,13 @@ export default async function AdminDashboardPage() {
               Search... <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 4px', background: 'var(--surface)', borderRadius: 4, marginLeft: 16 }}>⌘K</kbd>
             </div>
             <Link href="/admin/officers" className="btn btn-secondary btn-sm">+ Add officer</Link>
+            <form action="/auth/signout" method="post" style={{ display: 'flex' }}>
+              <button type="submit" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px', height: 28, borderRadius: 7, border: '1px solid var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Sign out
+              </button>
+            </form>
+            <div style={{ width: 30, height: 30, borderRadius: 999, background: 'linear-gradient(135deg, var(--primary) 0%, #6B82D0 100%)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12 }}>{adminInitials}</div>
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
+import { CitizenBottomNav } from '@/components/shared/CitizenBottomNav'
 
 export const metadata: Metadata = {
   title: 'Civic Park — Bangalore Illegal Parking Reporting',
@@ -263,6 +264,8 @@ export default async function HomePage() {
           .nav-dot     { display: none !important; }
         }
       `}</style>
+
+      {user && <CitizenBottomNav />}
     </main>
   )
 }

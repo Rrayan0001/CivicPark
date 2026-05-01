@@ -59,7 +59,8 @@ export default async function ProfilePage() {
       <div style={{ padding: '0 18px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--line)' }}>
         <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>Profile</span>
         <form action="/auth/signout" method="post">
-          <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13, padding: 6 }}>
+          <button type="submit" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px', height: 30, borderRadius: 7, border: '1px solid var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 12.5, color: 'var(--ink-3)', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Sign out
           </button>
         </form>
@@ -171,20 +172,6 @@ export default async function ProfilePage() {
         </section>
       </div>
 
-      {/* Bottom nav */}
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--line)', display: 'flex', height: 64, zIndex: 20 }}>
-        {[
-          { href: '/',                   label: 'Home',    active: false, icon: <path d="m3 11 9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9Z"/> },
-          { href: '/citizen/my-reports', label: 'Reports', active: false, icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
-          { href: '/citizen/report/new', label: 'Report',  active: false, icon: <><path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="4"/></> },
-          { href: '/citizen/profile',    label: 'Profile', active: true,  icon: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></> },
-        ].map(item => (
-          <Link key={item.href} href={item.href} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, fontSize: 10.5, fontWeight: 500, textDecoration: 'none', color: item.active ? 'var(--ink)' : 'var(--muted)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={item.active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
     </div>
   )
 }

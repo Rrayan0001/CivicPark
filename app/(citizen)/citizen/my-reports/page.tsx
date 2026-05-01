@@ -193,20 +193,6 @@ export default async function MyReportsPage({
         ))}
       </div>
 
-      {/* Bottom nav */}
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--line)', display: 'flex', height: 64, zIndex: 20 }}>
-        {[
-          { href: '/',                   label: 'Home',    active: false, icon: <path d="m3 11 9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9Z"/> },
-          { href: '/citizen/my-reports', label: 'Reports', active: true,  icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
-          { href: '/citizen/report/new', label: 'Report',  active: false, icon: <><path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="4"/></> },
-          { href: '/citizen/profile',    label: 'Profile', active: false, icon: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></> },
-        ].map(item => (
-          <Link key={item.href} href={item.href} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, fontSize: 10.5, fontWeight: 500, textDecoration: 'none', color: item.active ? 'var(--ink)' : 'var(--muted)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={item.active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
     </div>
   )
 }

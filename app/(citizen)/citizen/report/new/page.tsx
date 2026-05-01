@@ -128,18 +128,30 @@ export default function ReportNewPage() {
   const [photos, setPhotos]       = useState<File[]>([])
   const [previews, setPreviews]   = useState<string[]>([])
   const [gps, setGps]             = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
+  const [locStatus, setLocStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle')
   const [address, setAddress]     = useState('')
   const [animKey, setAnimKey]     = useState(0)
   const fileInputRef              = useRef<HTMLInputElement>(null)
+  const galleryInputRef           = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (!navigator.geolocation) return
+  function requestLocation() {
+    if (!navigator.geolocation) { setLocStatus('denied'); return }
+    setLocStatus('requesting')
     navigator.geolocation.getCurrentPosition(
-      pos => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) }),
-      () => {},
-      { enableHighAccuracy: true, timeout: 10000 },
+      pos => {
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) })
+        setLocStatus('granted')
+      },
+      () => setLocStatus('denied'),
+      { enableHighAccuracy: true, timeout: 12000 },
     )
-  }, [])
+  }
+
+  // Auto-request when user reaches step 2
+  useEffect(() => {
+    if (step === 2 && locStatus === 'idle') requestLocation()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
 
   useEffect(() => {
     setAnimKey(k => k + 1)
@@ -151,7 +163,7 @@ export default function ReportNewPage() {
     return () => urls.forEach(URL.revokeObjectURL)
   }, [photos])
 
-  const canNext = step === 0 ? true : step === 1 ? !!selectedCat : true
+  const canNext = step === 0 ? photos.length > 0 : step === 1 ? !!selectedCat : true
 
   const goNext = useCallback(() => {
     if (canNext) setStep(s => s + 1)
@@ -182,13 +194,12 @@ export default function ReportNewPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 4)
     setPhotos(files)
-    if (files.length > 0) setStep(1)
   }
 
   /* ─── Success Screen ─── */
   if (submitted) {
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
+      <div className="grain" style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
         <div style={{ animation: 'fadeUp 0.5s ease both', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28, maxWidth: 340 }}>
           {/* Success ring */}
           <div style={{ position: 'relative', width: 88, height: 88 }}>
@@ -249,7 +260,7 @@ export default function ReportNewPage() {
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Header ── */}
-      <header style={{
+      <header className="grain" style={{
         position: 'sticky', top: 0, zIndex: 20,
         background: 'rgba(250,250,247,0.92)',
         backdropFilter: 'blur(12px)',
@@ -322,7 +333,7 @@ export default function ReportNewPage() {
         {step === 0 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {/* Viewfinder */}
-            <div style={{ flex: 1, background: '#070C17', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 340 }}>
+            <div className="grain grain-dark" style={{ flex: 1, background: '#070C17', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 340 }}>
               {/* Preview image */}
               <div style={{ flex: 1, position: 'relative' }}>
                 {previews[0] ? (
@@ -397,7 +408,7 @@ export default function ReportNewPage() {
               </div>
 
               {/* Camera controls bar */}
-              <div style={{ padding: '16px 22px 20px', background: 'rgba(7,12,23,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="grain grain-dark" style={{ padding: '16px 22px 20px', background: 'rgba(7,12,23,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {/* Thumbnails */}
                 <div style={{ display: 'flex', gap: 7 }}>
                   {[0, 1, 2, 3].map(n => (
@@ -423,7 +434,7 @@ export default function ReportNewPage() {
                   ))}
                 </div>
 
-                {/* Hidden input */}
+                {/* Hidden camera input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -434,9 +445,20 @@ export default function ReportNewPage() {
                   onChange={handleFileChange}
                 />
 
-                {/* Shutter */}
+                {/* Hidden gallery input (no capture attribute = opens photo library) */}
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+
+                {/* Shutter — camera only */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
+                  aria-label="Take photo"
                   style={{
                     width: 68, height: 68,
                     borderRadius: 999,
@@ -449,9 +471,10 @@ export default function ReportNewPage() {
                   }}
                 />
 
-                {/* Gallery icon */}
+                {/* Gallery picker */}
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => galleryInputRef.current?.click()}
+                  aria-label="Choose from gallery"
                   style={{
                     width: 46, height: 46,
                     borderRadius: 10,
@@ -462,8 +485,9 @@ export default function ReportNewPage() {
                   }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/>
-                    <circle cx="12" cy="13" r="4"/>
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="m21 15-5-5L5 21"/>
                   </svg>
                 </button>
               </div>
@@ -471,11 +495,16 @@ export default function ReportNewPage() {
 
             {/* CTA */}
             <div style={{ padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-              <button onClick={goNext} className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}>
-                {photos.length > 0 ? `Use ${photos.length} photo${photos.length > 1 ? 's' : ''} →` : 'Skip photos →'}
+              <button
+                onClick={goNext}
+                disabled={!canNext}
+                className="btn btn-primary"
+                style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12, opacity: canNext ? 1 : 0.45, cursor: canNext ? 'pointer' : 'not-allowed' }}
+              >
+                {photos.length > 0 ? `Use ${photos.length} photo${photos.length > 1 ? 's' : ''} →` : 'Add at least 1 photo to continue'}
               </button>
               <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--muted)', marginTop: 9, lineHeight: 1.5 }}>
-                Tap shutter to open camera or gallery · Min 1 photo recommended
+                Photo is required as proof · shutter = camera · gallery icon = library
               </p>
             </div>
           </div>
@@ -563,61 +592,111 @@ export default function ReportNewPage() {
             <div style={{ padding: '24px 20px 12px' }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>GPS location</p>
               <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>Confirm location</h2>
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>GPS auto-detected. Adjust address if needed.</p>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
+                {locStatus === 'granted' ? 'GPS locked. Adjust address if needed.' : 'We need your location to file the report.'}
+              </p>
             </div>
 
             <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Map */}
-              <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', position: 'relative', height: 200 }}>
-                <Image src="/images/5.png" alt="Location map" fill style={{ objectFit: 'cover' }} />
-                {/* Pin */}
-                <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -100%)' }}>
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ width: 24, height: 24, borderRadius: '50% 50% 50% 4px', background: 'var(--primary)', transform: 'rotate(-45deg)', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }} />
+
+              {/* ── Requesting state ── */}
+              {locStatus === 'requesting' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '48px 24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 999, background: 'var(--primary-soft)', display: 'grid', placeItems: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+                    </svg>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Requesting location…</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Allow location access in the browser prompt that appeared.</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[0,1,2].map(i => (
+                      <span key={i} style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--primary)', opacity: 0.3, animation: `fadeIn 0.6s ease ${i * 0.2}s infinite alternate both` }} />
+                    ))}
                   </div>
                 </div>
-                {/* GPS badge */}
-                <div style={{ position: 'absolute', top: 12, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--ink-2)', boxShadow: 'var(--shadow-sm)' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22C55E' }} />
-                  {gps ? `Locked ±${gps.accuracy}m` : 'Acquiring…'}
-                </div>
-              </div>
+              )}
 
-              {/* Address input */}
-              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s ease' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--muted)', marginBottom: 7 }}>Address / Landmark</div>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  placeholder="e.g. Near City Market, MG Road…"
-                  style={{
-                    width: '100%', fontSize: 14.5, fontWeight: 500,
-                    border: 'none', outline: 'none',
-                    background: 'transparent', color: 'var(--ink)',
-                    letterSpacing: '-0.01em',
-                  }}
-                />
-                {gps && (
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', marginTop: 7 }}>
-                    {gps.lat.toFixed(5)}°N · {gps.lng.toFixed(5)}°E
+              {/* ── Denied state ── */}
+              {locStatus === 'denied' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '36px 24px', background: 'var(--error-bg)', border: '1px solid rgba(180,51,56,0.2)', borderRadius: 16 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 999, background: 'rgba(180,51,56,0.12)', display: 'grid', placeItems: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--error)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="m4 4 16 16"/>
+                    </svg>
                   </div>
-                )}
-              </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--error)', marginBottom: 4 }}>Location access denied</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      To enable it: open your browser settings → Site permissions → Location → Allow for this site. Then tap retry below.
+                    </div>
+                  </div>
+                  <button onClick={requestLocation} className="btn btn-secondary" style={{ height: 42, fontSize: 13.5 }}>
+                    Retry
+                  </button>
+                </div>
+              )}
 
-              {/* Zone badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--status-rejected-bg)', border: '1px solid rgba(180,51,56,0.2)', borderRadius: 10 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--status-rejected)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
-                </svg>
-                <span style={{ fontSize: 12.5, color: 'var(--status-rejected)', fontWeight: 500 }}>No-parking zone · MV Act §122</span>
-              </div>
+              {/* ── Granted state — map + address ── */}
+              {locStatus === 'granted' && gps && (
+                <>
+                  {/* Map placeholder with GPS pin */}
+                  <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', position: 'relative', height: 200 }}>
+                    <Image src="/images/5.png" alt="Location map" fill style={{ objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -100%)' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50% 50% 50% 4px', background: 'var(--primary)', transform: 'rotate(-45deg)', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+                    </div>
+                    <div style={{ position: 'absolute', top: 12, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--ink-2)', boxShadow: 'var(--shadow-sm)' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 999, background: '#22C55E', flexShrink: 0 }} />
+                      Locked · ±{gps.accuracy}m
+                    </div>
+                  </div>
+
+                  {/* Address input */}
+                  <div style={{ background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--muted)', marginBottom: 7 }}>Address / Landmark</div>
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder="e.g. Near City Market, MG Road…"
+                      style={{ width: '100%', fontSize: 14.5, fontWeight: 500, border: 'none', outline: 'none', background: 'transparent', color: 'var(--ink)', letterSpacing: '-0.01em' }}
+                    />
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', marginTop: 7 }}>
+                      {gps.lat.toFixed(5)}°N · {gps.lng.toFixed(5)}°E
+                    </div>
+                  </div>
+
+                  {/* Zone badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--status-rejected-bg)', border: '1px solid rgba(180,51,56,0.2)', borderRadius: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--status-rejected)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
+                    </svg>
+                    <span style={{ fontSize: 12.5, color: 'var(--status-rejected)', fontWeight: 500 }}>No-parking zone · MV Act §122</span>
+                  </div>
+                </>
+              )}
+
             </div>
 
             <div style={{ marginTop: 'auto', padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-              <button onClick={goNext} className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}>
-                Confirm location →
-              </button>
+              {locStatus === 'denied' ? (
+                /* Skip option when denied */
+                <button onClick={goNext} className="btn btn-secondary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}>
+                  Skip location and continue →
+                </button>
+              ) : (
+                <button
+                  onClick={goNext}
+                  disabled={locStatus === 'requesting'}
+                  className="btn btn-primary"
+                  style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}
+                >
+                  {locStatus === 'requesting' ? 'Waiting for location…' : 'Confirm location →'}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -717,7 +796,7 @@ export default function ReportNewPage() {
               )}
 
               {/* Summary card */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+              <div className="grain" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
                 {[
                   { label: 'Violation', value: CATEGORIES.find(c => c.id === selectedCat)?.name ?? '—' },
                   { label: 'Fine',      value: CATEGORIES.find(c => c.id === selectedCat)?.fine ?? '—' },
