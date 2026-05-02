@@ -7,6 +7,17 @@ import { createClient } from '@/lib/supabase/client'
 
 const NAV_ITEMS = [
   {
+    href: '/',
+    label: 'Home',
+    match: (p: string) => p === '/',
+    icon: (
+      <>
+        <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5Z"/>
+        <path d="M9 21V12h6v9"/>
+      </>
+    ),
+  },
+  {
     href: '/citizen/my-reports',
     label: 'Reports',
     match: (p: string) => p.startsWith('/citizen/my-reports') || (p.startsWith('/citizen/report/') && p !== '/citizen/report/new'),

@@ -97,40 +97,162 @@ export default async function MyReportsPage({
     query = query.in('status', activeTab.split(','))
   }
 
-  const { data: reports } = await query
-  const { count: total } = await supabase
-    .from('reports')
-    .select('id', { count: 'exact', head: true })
-    .eq('reporter_id', user.id)
+  const [{ data: reports }, { count: totalCount }, { data: profileRaw }, approvedRes, pendingRes] = await Promise.all([
+    query,
+    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('reporter_id', user.id),
+    supabase.from('profiles').select('full_name, points, tier').eq('id', user.id).maybeSingle(),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('reporter_id', user.id).in('status', ['approved', 'challan_issued']),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('reporter_id', user.id).in('status', ['pending_ai', 'pending_review']),
+  ])
 
-  const { data: profileRaw } = await supabase
-    .from('profiles')
-    .select('full_name, approved_reports, reward_points, tier')
-    .eq('id', user.id)
-    .single()
+  type ProfileRow = { full_name: string | null; tier: string | null; points: number | null }
+  const profile = profileRaw as ProfileRow | null
+  const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
+  const tier = profile?.tier ?? 'bronze'
+  const points = profile?.points ?? 0
+  
+  const approvedCount = approvedRes.count ?? 0
+  const pendingCount  = pendingRes.count  ?? 0
+  const total = totalCount ?? 0
+  const approvalRate  = total > 0 ? Math.round((approvedCount / total) * 100) : 0
 
-  const profile = profileRaw as { full_name: string | null; approved_reports: number; reward_points: number; tier: string } | null
+  const now = new Date()
+  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening'
 
-  const approvalRate = total && profile?.approved_reports
-    ? Math.round((profile.approved_reports / total) * 100)
-    : 0
+  const TIER_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+    bronze:   { color: '#92400E', bg: '#FEF3C7', label: 'Bronze' },
+    silver:   { color: '#374151', bg: '#F3F4F6', label: 'Silver' },
+    gold:     { color: '#B45309', bg: '#FEF9C3', label: 'Gold'   },
+    platinum: { color: '#1E3A8A', bg: '#EFF6FF', label: 'Platinum' },
+  }
+  const tierCfg = TIER_CONFIG[tier] ?? TIER_CONFIG.bronze
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .dash-card { animation: fadeUp 0.35s ease both; }
+      ` }} />
 
-      {/* Header */}
-      <div style={{ padding: '16px 18px 0', background: 'var(--bg)', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', color: 'var(--ink)' }}>
-              {total ?? 0} reports filed
-            </h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
-              {approvalRate}% approval rate · {profile?.tier ?? 'bronze'} tier · {profile?.reward_points ?? 0} pts
-            </p>
+      {/* ── Top header ── */}
+      <header style={{
+        padding: '20px 20px 0',
+        background: 'var(--bg)',
+        position: 'relative', zIndex: 10,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            Civic Park · BLR
+          </span>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px', borderRadius: 999,
+            background: tierCfg.bg, color: tierCfg.color,
+            fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+          }}>
+            ★ {tierCfg.label}
           </div>
-          <Link href="/citizen/report/new" className="btn btn-primary btn-sm">+ Report</Link>
         </div>
+        <div style={{ paddingBottom: 16, borderBottom: '1px solid var(--line)' }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>{greeting},</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', margin: '2px 0 0', color: 'var(--ink)' }}>
+            {firstName} 👋
+          </h1>
+        </div>
+      </header>
+
+      <div style={{ padding: '20px 20px 0' }}>
+        {/* ── KPI strip ── */}
+        <div className="dash-card citizen-dashboard-grid" style={{ marginBottom: 22, animationDelay: '0ms' }}>
+          {[
+            { label: 'Filed',    value: total,         color: 'var(--ink)' },
+            { label: 'Approved', value: approvedCount, color: '#1F7A4A'   },
+            { label: 'Pending',  value: pendingCount,  color: '#1F5BB5'   },
+          ].map(s => (
+            <div key={s.label} style={{
+              background: 'var(--surface)', border: '1px solid var(--line)',
+              borderRadius: 12, padding: '14px 12px', textAlign: 'center',
+            }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color: s.color, letterSpacing: '-0.04em' }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Approval progress bar ── */}
+        {total > 0 && (
+          <div className="dash-card" style={{
+            background: 'var(--surface)', border: '1px solid var(--line)',
+            borderRadius: 12, padding: '14px 16px', marginBottom: 22, animationDelay: '60ms',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Approval rate</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#1F7A4A' }}>{approvalRate}%</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${approvalRate}%`, background: '#1F7A4A', borderRadius: 999, transition: 'width 1s ease' }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{approvedCount} of {total} reports actioned</div>
+          </div>
+        )}
+
+        {/* ── Points card ── */}
+        <div className="dash-card" style={{
+          background: 'linear-gradient(135deg, #0E1A2B 0%, #1E3A8A 100%)',
+          borderRadius: 14, padding: '18px 20px', marginBottom: 22,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          color: '#fff', animationDelay: '100ms',
+        }}>
+          <div>
+            <div style={{ fontSize: 11, opacity: 0.7, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+              Civic Points
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em' }}>
+              {points.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+              {tier === 'bronze' ? `${Math.max(50 - points, 0)} pts to Silver` : `${tierCfg.label} tier`}
+            </div>
+          </div>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+
+        {/* ── Quick actions ── */}
+        <div className="dash-card" style={{ marginBottom: 22, animationDelay: '130ms' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em', margin: 0 }}>
+              Quick actions
+            </h2>
+          </div>
+          <Link href="/citizen/report/new" style={{
+            background: 'var(--ink)', color: '#fff',
+            borderRadius: 12, padding: '16px 14px',
+            textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10,
+            fontSize: 13, fontWeight: 600, width: '100%'
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            File new report
+          </Link>
+        </div>
+      </div>
+
+      {/* Reports Section Header */}
+      <div style={{ padding: '16px 18px 0', background: 'var(--bg)', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid var(--line)' }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em', marginBottom: 12 }}>My reports</h2>
+
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>

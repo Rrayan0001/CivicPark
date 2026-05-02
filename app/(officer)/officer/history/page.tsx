@@ -30,9 +30,9 @@ export default async function OfficerHistoryPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className="officer-layout-grid" style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Sidebar */}
-      <aside style={{ background: 'var(--surface)', borderRight: '1px solid var(--line)', padding: '18px 14px', display: 'flex', flexDirection: 'column', gap: 4, height: '100vh', position: 'sticky', top: 0 }}>
+      <aside className="officer-sidebar" style={{ background: 'var(--surface)', borderRight: '1px solid var(--line)', padding: '18px 14px', display: 'flex', flexDirection: 'column', gap: 4, height: '100vh', position: 'sticky', top: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px 18px', borderBottom: '1px solid var(--line)', marginBottom: 14 }}>
           <div style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--primary)', color: 'var(--on-primary)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14 }}>CP</div>
           <div>
@@ -62,13 +62,13 @@ export default async function OfficerHistoryPage() {
 
       <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Top bar */}
-        <div style={{ height: 56, borderBottom: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 16, position: 'sticky', top: 0, zIndex: 4 }}>
+        <div className="officer-topbar" style={{ height: 56, borderBottom: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 16, position: 'sticky', top: 0, zIndex: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)' }}>
             <span>Officer</span><span>›</span><strong style={{ color: 'var(--ink)' }}>Review history</strong>
           </div>
         </div>
 
-        <div style={{ padding: '26px 32px 80px' }}>
+        <div className="officer-page-content" style={{ padding: '26px 32px 80px' }}>
           {/* Page header */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 24 }}>
             <div>
@@ -81,7 +81,7 @@ export default async function OfficerHistoryPage() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
+          <div className="officer-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
             {[
               { lbl: 'Total reviewed', num: (totalCount ?? 0).toLocaleString() },
               { lbl: 'Approved', num: approved.length.toLocaleString() },
