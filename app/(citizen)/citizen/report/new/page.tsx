@@ -295,10 +295,17 @@ export default function ReportNewPage() {
       fd.append('gps_captured_at', gps?.capturedAt ?? '')
       fd.append('gps_quality', gpsQuality)
       fd.append('note', note)
-      for (const p of photos) fd.append('photos', p)
-      const res  = await fetch('/api/reports', { method: 'POST', body: fd })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Submission failed')
+      // Compress each photo before upload to stay well under the 4 MB body limit
+      const compressed = await Promise.all(photos.map(p => compressImage(p)))
+      for (const p of compressed) fd.append('photos', p)
+      const res = await fetch('/api/reports', { method: 'POST', body: fd })
+      // Guard against non-JSON responses (e.g. 413 Request Entity Too Large)
+      let json: Record<string, unknown> = {}
+      try { json = await res.json() } catch {
+        if (res.status === 413) throw new Error('Photos are too large. Please try again with fewer or smaller images.')
+        throw new Error(`Server error (${res.status}). Please try again.`)
+      }
+      if (!res.ok) throw new Error((json.error as string) ?? 'Submission failed')
       setSubmitted(true)
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Something went wrong')
@@ -336,6 +343,39 @@ export default function ReportNewPage() {
       const next = prev.filter((_, i) => i !== index)
       setActivePreview(Math.min(activePreview, Math.max(next.length - 1, 0)))
       return next
+    })
+  }
+
+  // ── Compress a photo to JPEG before uploading (prevents 413 errors) ────────
+  async function compressImage(file: File, maxDimension = 1920, quality = 0.82): Promise<File> {
+    if (!file.type.startsWith('image/') || typeof document === 'undefined') return file
+    return new Promise(resolve => {
+      const img = new window.Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let { width, height } = img
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) { height = Math.round((height / width) * maxDimension); width = maxDimension }
+          else { width = Math.round((width / height) * maxDimension); height = maxDimension }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { resolve(file); return }
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          blob => {
+            if (!blob) { resolve(file); return }
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg', lastModified: file.lastModified,
+            }))
+          },
+          'image/jpeg', quality
+        )
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+      img.src = url
     })
   }
 
