@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { StaffVerificationActions } from '@/components/admin/StaffVerificationActions'
 
 export const revalidate = 30
 
@@ -14,14 +15,24 @@ export default async function AdminOfficersPage() {
   const supabase = await createClient()
 
   const [officersRes, profileRes] = await Promise.all([
-    supabase.from('profiles').select('id, full_name, role, created_at').eq('role', 'officer').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, full_name, role, created_at, staff_verified, staff_suspended').eq('role', 'officer').order('created_at', { ascending: false }),
     supabase.auth.getUser().then(r => supabase.from('profiles').select('full_name').eq('id', r.data.user?.id ?? '').maybeSingle()),
   ])
 
-  type OfficerRow = { id: string; full_name: string | null; role: string; created_at: string }
+  type OfficerRow = {
+    id: string
+    full_name: string | null
+    role: string
+    created_at: string
+    staff_verified: boolean
+    staff_suspended: boolean
+  }
   const officers = (officersRes.data ?? []) as OfficerRow[]
   const adminName = (profileRes.data as { full_name: string | null } | null)?.full_name ?? 'Admin'
   const adminInitials = adminName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+  const verifiedCount = officers.filter((officer) => officer.staff_verified && !officer.staff_suspended).length
+  const pendingCount = officers.filter((officer) => !officer.staff_verified && !officer.staff_suspended).length
+  const suspendedCount = officers.filter((officer) => officer.staff_suspended).length
 
   function initials(name: string | null) {
     if (!name) return '?'
@@ -64,7 +75,9 @@ export default async function AdminOfficersPage() {
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 24 }}>
             <div>
               <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', margin: 0 }}>Officers</h1>
-              <div style={{ color: 'var(--ink-3)', marginTop: 4, fontSize: 14 }}>{officers.length} officer{officers.length !== 1 ? 's' : ''}</div>
+              <div style={{ color: 'var(--ink-3)', marginTop: 4, fontSize: 14 }}>
+                {officers.length} officer{officers.length !== 1 ? 's' : ''} · {verifiedCount} verified · {pendingCount} pending · {suspendedCount} suspended
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm">+ Add officer</button>
@@ -78,7 +91,7 @@ export default async function AdminOfficersPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
-                    {['Officer', 'Role', 'Joined', 'Actions'].map(h => (
+                    {['Officer', 'Access', 'Joined', 'Actions'].map(h => (
                       <th key={h} style={{ background: 'var(--surface-2)', textAlign: 'left', fontWeight: 500, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>{h}</th>
                     ))}
                   </tr>
@@ -93,15 +106,29 @@ export default async function AdminOfficersPage() {
                         </div>
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-2)', border: '1px solid var(--line)' }}>{row.role.toUpperCase()}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-2)', border: '1px solid var(--line)' }}>{row.role.toUpperCase()}</span>
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '3px 7px',
+                            borderRadius: 999,
+                            background: row.staff_suspended ? '#F8DCDC' : row.staff_verified ? '#DCEEDF' : '#FFF3D6',
+                            color: row.staff_suspended ? '#B43338' : row.staff_verified ? '#1F7A4A' : '#946200',
+                          }}>
+                            {row.staff_suspended ? 'Suspended' : row.staff_verified ? 'Verified' : 'Pending verification'}
+                          </span>
+                        </div>
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)', color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                         {new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
-                        </button>
+                        <StaffVerificationActions
+                          staffId={row.id}
+                          initialVerified={row.staff_verified}
+                          initialSuspended={row.staff_suspended}
+                        />
                       </td>
                     </tr>
                   ))}

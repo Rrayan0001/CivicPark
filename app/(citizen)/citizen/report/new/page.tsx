@@ -99,9 +99,8 @@ const CATEGORIES = [
 
 const STEPS = [
   { id: 'photos',   label: 'Evidence' },
-  { id: 'category', label: 'Violation' },
   { id: 'location', label: 'Location' },
-  { id: 'note',     label: 'Details' },
+  { id: 'category', label: 'Violation' },
   { id: 'submit',   label: 'Submit' },
 ]
 
@@ -276,7 +275,13 @@ export default function ReportNewPage() {
     return () => controller.abort()
   }, [gps, hasAcceptableGps])
 
-  const canNext = step === 0 ? photos.length > 0 : step === 1 ? !!selectedCat : true
+  const canNext = step === 0
+    ? photos.length > 0
+    : step === 1
+      ? hasAcceptableGps
+      : step === 2
+        ? !!selectedCat
+        : true
 
   const goNext = useCallback(() => {
     if (canNext) setStep(s => s + 1)
@@ -809,87 +814,14 @@ export default function ReportNewPage() {
           </div>
         )}
 
-        {/* ─── Step 1: Category ─── */}
+        {/* ─── Step 1: Location ─── */}
         {step === 1 && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '24px 20px 12px' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>Violation type</p>
-              <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>What did you observe?</h2>
-            </div>
-
-            <div style={{ flex: 1, padding: '8px 20px 0', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {CATEGORIES.map(cat => {
-                  const selected = selectedCat === cat.id
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCat(cat.id)}
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        background: selected ? 'var(--primary-soft)' : 'var(--surface)',
-                        border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--line)'}`,
-                        borderRadius: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{
-                        width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-                        background: selected ? 'var(--primary)' : 'var(--surface-2)',
-                        color: selected ? 'white' : 'var(--ink-3)',
-                        display: 'grid', placeItems: 'center',
-                        transition: 'all 0.15s ease',
-                      }}>
-                        {cat.icon}
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>{cat.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{cat.description}</div>
-                        <div style={{ fontFamily: 'var(--font-kn)', fontSize: 11, color: 'var(--muted-2)', marginTop: 2 }}>{cat.kn}</div>
-                      </div>
-
-                      <div style={{
-                        width: 20, height: 20, borderRadius: 999, flexShrink: 0,
-                        background: selected ? 'var(--primary)' : 'transparent',
-                        border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--line)'}`,
-                        display: 'grid', placeItems: 'center',
-                        transition: 'all 0.15s ease',
-                      }}>
-                        {selected && (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m9 12 2 2 4-4"/>
-                          </svg>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div style={{ padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-              <button onClick={goNext} disabled={!canNext} className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}>
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Step 2: Location ─── */}
-        {step === 2 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '24px 20px 12px' }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>Location</p>
               <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>Where did this happen?</h2>
               <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
-                Lock the exact spot with GPS, then add a landmark if it helps the officer verify the scene.
+                Confirm the exact spot with live GPS, then add a landmark only if it helps the officer recognize the curb or junction.
               </p>
             </div>
 
@@ -1056,12 +988,12 @@ export default function ReportNewPage() {
             <div style={{ marginTop: 'auto', padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
               <button
                 onClick={goNext}
-                disabled={locStatus === 'requesting' || !hasAcceptableGps}
+                disabled={!canNext}
                 className="btn btn-primary"
                 style={{
                   width: '100%', height: 48, fontSize: 14, borderRadius: 12,
-                  opacity: (locStatus === 'requesting' || !hasAcceptableGps) ? 0.45 : 1,
-                  cursor: (locStatus === 'requesting' || !hasAcceptableGps) ? 'not-allowed' : 'pointer',
+                  opacity: canNext ? 1 : 0.45,
+                  cursor: canNext ? 'pointer' : 'not-allowed',
                 }}
               >
                 {locStatus === 'requesting' ? 'Waiting for GPS…' : 'Confirm location →'}
@@ -1075,81 +1007,89 @@ export default function ReportNewPage() {
           </div>
         )}
 
-        {/* ─── Step 3: Note ─── */}
-        {step === 3 && (
+        {/* ─── Step 2: Category ─── */}
+        {step === 2 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '24px 20px 12px' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>Optional</p>
-              <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>Add details</h2>
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>Help the reviewing officer with context.</p>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>Violation type</p>
+              <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>What did you observe?</h2>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>Pick the closest match. Officers can still correct the category during review.</p>
             </div>
 
-            <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{
-                background: 'var(--surface)',
-                border: '1.5px solid var(--line)',
-                borderRadius: 12,
-                padding: '14px 16px',
-              }}>
-                <textarea
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  placeholder="e.g. Vehicle has been parked here since 8 AM. No-parking sign is clearly visible in photo 2."
-                  rows={5}
-                  style={{
-                    width: '100%', fontFamily: 'inherit',
-                    fontSize: 14, color: 'var(--ink)',
-                    background: 'transparent',
-                    border: 'none', outline: 'none',
-                    resize: 'none', lineHeight: 1.6,
-                  }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)' }}>{note.length} chars</span>
-                </div>
-              </div>
-
-              {/* Quick-fill chips */}
-              <div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--muted)', marginBottom: 8 }}>Quick fill</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {NOTE_CHIPS.map(chip => (
+            <div style={{ flex: 1, padding: '8px 20px 0', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {CATEGORIES.map(cat => {
+                  const selected = selectedCat === cat.id
+                  return (
                     <button
-                      key={chip}
-                      onClick={() => setNote(chip)}
+                      key={cat.id}
+                      onClick={() => setSelectedCat(cat.id)}
                       style={{
-                        padding: '7px 12px',
-                        border: '1px solid var(--line)',
-                        borderRadius: 999,
-                        background: note === chip ? 'var(--primary-soft)' : 'var(--surface)',
-                        borderColor: note === chip ? 'var(--primary)' : 'var(--line)',
-                        fontSize: 12.5, color: note === chip ? 'var(--primary-ink)' : 'var(--ink-2)',
+                        width: '100%',
+                        padding: '14px 16px',
+                        background: selected ? 'var(--primary-soft)' : 'var(--surface)',
+                        border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--line)'}`,
+                        borderRadius: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
                         cursor: 'pointer',
-                        fontWeight: note === chip ? 500 : 400,
-                        transition: 'all 0.12s ease',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      {chip}
+                      <div style={{
+                        width: 42, height: 42, borderRadius: 10, flexShrink: 0,
+                        background: selected ? 'var(--primary)' : 'var(--surface-2)',
+                        color: selected ? 'white' : 'var(--ink-3)',
+                        display: 'grid', placeItems: 'center',
+                        transition: 'all 0.15s ease',
+                      }}>
+                        {cat.icon}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>{cat.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{cat.description}</div>
+                        <div style={{ fontFamily: 'var(--font-kn)', fontSize: 11, color: 'var(--muted-2)', marginTop: 2 }}>{cat.kn}</div>
+                      </div>
+
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 999, flexShrink: 0,
+                        background: selected ? 'var(--primary)' : 'transparent',
+                        border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--line)'}`,
+                        display: 'grid', placeItems: 'center',
+                        transition: 'all 0.15s ease',
+                      }}>
+                        {selected && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m9 12 2 2 4-4"/>
+                          </svg>
+                        )}
+                      </div>
                     </button>
-                  ))}
-                </div>
+                  )
+                })}
               </div>
             </div>
 
-            <div style={{ marginTop: 'auto', padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-              <button onClick={goNext} className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12 }}>
-                Review & submit →
+            <div style={{ padding: '14px 20px 22px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+              <button onClick={goNext} disabled={!canNext} className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 14, borderRadius: 12, opacity: canNext ? 1 : 0.45 }}>
+                Continue →
               </button>
             </div>
           </div>
         )}
 
-        {/* ─── Step 4: Review ─── */}
-        {step === 4 && (
+        {/* ─── Step 3: Review ─── */}
+        {step === 3 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '24px 20px 12px' }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--muted)', marginBottom: 6 }}>Final check</p>
-              <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>Review report</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.03em', margin: 0, color: 'var(--ink)' }}>Review and submit</h2>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
+                Check the summary below, then add an optional note only if it helps the officer review faster.
+              </p>
             </div>
 
             <div style={{ flex: 1, padding: '0 20px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1175,6 +1115,7 @@ export default function ReportNewPage() {
                   { label: 'Violation', value: CATEGORIES.find(c => c.id === selectedCat)?.name ?? '—' },
                   { label: 'Fine',      value: CATEGORIES.find(c => c.id === selectedCat)?.fine ?? '—' },
                   { label: 'Location',  value: address || 'Landmark not added' },
+                  { label: 'Nearby',    value: getNearbySummary(nearbyContext) || nearbyContext?.displayName || 'Context unavailable' },
                   { label: 'GPS',       value: gps ? `${gps.lat.toFixed(4)}°N · ${gps.lng.toFixed(4)}°E · ±${gps.accuracy}m` : 'Not acquired' },
                   { label: 'Photos',    value: photos.length > 0 ? `${photos.length} attached` : 'None' },
                   { label: 'Note',      value: note || '—' },
@@ -1194,6 +1135,54 @@ export default function ReportNewPage() {
                     <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500, textAlign: 'right', maxWidth: '65%', lineHeight: 1.4 }}>{row.value}</span>
                   </div>
                 ))}
+              </div>
+
+              <div style={{
+                background: 'var(--surface)',
+                border: '1.5px solid var(--line)',
+                borderRadius: 12,
+                padding: '14px 16px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--muted)', marginBottom: 8 }}>
+                  Optional note
+                </div>
+                <textarea
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder="e.g. Vehicle has been parked here since 8 AM. No-parking sign is clearly visible in photo 2."
+                  rows={4}
+                  style={{
+                    width: '100%', fontFamily: 'inherit',
+                    fontSize: 14, color: 'var(--ink)',
+                    background: 'transparent',
+                    border: 'none', outline: 'none',
+                    resize: 'none', lineHeight: 1.6,
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {NOTE_CHIPS.map(chip => (
+                      <button
+                        key={chip}
+                        onClick={() => setNote(chip)}
+                        style={{
+                          padding: '7px 12px',
+                          border: '1px solid var(--line)',
+                          borderRadius: 999,
+                          background: note === chip ? 'var(--primary-soft)' : 'var(--surface)',
+                          borderColor: note === chip ? 'var(--primary)' : 'var(--line)',
+                          fontSize: 12.5, color: note === chip ? 'var(--primary-ink)' : 'var(--ink-2)',
+                          cursor: 'pointer',
+                          fontWeight: note === chip ? 500 : 400,
+                          transition: 'all 0.12s ease',
+                        }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)' }}>{note.length} chars</span>
+                </div>
               </div>
 
               {/* Privacy notice */}

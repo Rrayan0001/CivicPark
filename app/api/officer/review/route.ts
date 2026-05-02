@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { hasVerifiedStaffAccess } from '@/lib/auth/staff'
 import { generate65BCertificate, type ReportData } from '@/lib/ai/certificate'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,13 +13,11 @@ export async function POST(request: NextRequest) {
 
   const { data: profileRaw } = await (supabase as AnyRecord)
     .from('profiles')
-    .select('role')
+    .select('id, role, staff_verified, staff_suspended')
     .eq('id', user.id)
     .single()
 
-  const profile = profileRaw as { role: string } | null
-
-  if (!profile || profile.role === 'citizen') {
+  if (!hasVerifiedStaffAccess(profileRaw, ['admin', 'officer'])) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

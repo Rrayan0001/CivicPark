@@ -1,9 +1,7 @@
 import { createHash } from 'crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { computePHashes } from '@/lib/ai/phash'
-import { checkTampering } from '@/lib/ai/tampering'
-import { findDuplicate } from '@/lib/ai/duplicate'
+import { processReportAi } from '@/lib/ai/process'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>
@@ -125,55 +123,15 @@ export async function POST(request: NextRequest) {
         return
       }
 
-      // 4a. pHash
-      const phashes = await computePHashes(photoBuffers)
-
-      // 4b. Tampering (aggregate flags across all images)
-      const combinedFlags = {
-        edited_image:   false,
-        no_camera_exif: false,
-        screenshot:     false,
-        low_quality:    false,
-      }
-      for (const buf of photoBuffers) {
-        const flags = await checkTampering(buf)
-        for (const key of Object.keys(combinedFlags) as Array<keyof typeof combinedFlags>) {
-          if (flags[key]) combinedFlags[key] = true
-        }
-      }
-
-      // 4c. Duplicate detection via PostGIS RPC
-      const duplicateOf = await findDuplicate({
+      await processReportAi({
         supabase,
-        plate:      null,   // No ALPR — plate detection skipped (officers check manually)
-        phashes,
-        lat:        parsedLat,
-        lng:        parsedLng,
-        capturedAt,
         reportId,
+        photoBuffers,
+        photoUrls,
+        lat: parsedLat,
+        lng: parsedLng,
+        capturedAt,
       })
-
-      // 4d. Determine final status
-      let newStatus: string
-      if (duplicateOf) {
-        newStatus = 'auto_rejected_duplicate'
-      } else if (combinedFlags.low_quality) {
-        newStatus = 'auto_rejected_low_quality'
-      } else {
-        newStatus = 'pending_review'
-      }
-
-      // 4e. Write back to Supabase
-      await (supabase as AnyRecord).from('reports').update({
-        status:           newStatus,
-        detected_plate:   null,
-        plate_confidence: null,
-        perceptual_hashes: phashes,
-        duplicate_of:     duplicateOf,
-        ai_flags:         combinedFlags,
-        ai_processed_at:  new Date().toISOString(),
-      }).eq('id', reportId)
-
     } catch (err) {
       console.error('[ai-inline] processing failed for report', reportId, err)
       // Fall back to pending_review so the report is not lost

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
+import { hasVerifiedStaffAccess } from '@/lib/auth/staff'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -35,13 +36,21 @@ export async function proxy(request: NextRequest) {
 
     const profileRes = await supabase
       .from('profiles')
-      .select('role')
+      .select('id, role, staff_verified, staff_suspended')
       .eq('id', user.id)
       .maybeSingle()
 
-    const role = (profileRes.data as { role: Database['public']['Enums']['user_role'] } | null)?.role ?? 'citizen'
+    const profile = profileRes.data as {
+      id: string
+      role: Database['public']['Enums']['user_role']
+      staff_verified: boolean
+      staff_suspended: boolean
+    } | null
+    const role = profile?.role ?? 'citizen'
+    const hasOfficerAccess = hasVerifiedStaffAccess(profile, ['officer', 'admin'])
+    const hasAdminAccess = hasVerifiedStaffAccess(profile, ['admin'])
 
-    if (isAdminRoute && role !== 'admin') {
+    if (isAdminRoute && !hasAdminAccess) {
       if (isAdminLoginRoute) {
         return supabaseResponse
       }
@@ -52,11 +61,11 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    if (isOfficerRoute && role === 'citizen') {
+    if (isOfficerRoute && !hasOfficerAccess) {
       return NextResponse.redirect(new URL('/citizen/my-reports', request.url))
     }
 
-    if (pathname === '/admin/login' && role === 'admin') {
+    if (pathname === '/admin/login' && hasAdminAccess) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url))
     }
   }

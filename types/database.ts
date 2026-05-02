@@ -24,6 +24,11 @@ export type Database = {
           approved_reports: number
           reward_points: number
           tier: string
+          staff_verified: boolean
+          staff_verified_at: string | null
+          staff_verified_by: string | null
+          staff_verification_notes: string | null
+          staff_suspended: boolean
           is_banned: boolean
           ban_reason: string | null
           created_at: string
@@ -39,6 +44,11 @@ export type Database = {
           approved_reports?: number
           reward_points?: number
           tier?: string
+          staff_verified?: boolean
+          staff_verified_at?: string | null
+          staff_verified_by?: string | null
+          staff_verification_notes?: string | null
+          staff_suspended?: boolean
           is_banned?: boolean
           ban_reason?: string | null
           created_at?: string

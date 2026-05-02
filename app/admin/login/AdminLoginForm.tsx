@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
+import { hasVerifiedStaffAccess } from '@/lib/auth/staff'
 import { loginSchema, type LoginInput } from '@/lib/validations'
 
 export function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
@@ -50,15 +51,13 @@ export function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('id, role, staff_verified, staff_suspended')
       .eq('id', user.id)
       .maybeSingle()
 
-    const role = (profile as { role: 'citizen' | 'officer' | 'admin' } | null)?.role
-
-    if (profileError || role !== 'admin') {
+    if (profileError || !hasVerifiedStaffAccess(profile, ['admin'])) {
       await supabase.auth.signOut()
-      setServerError('This account does not have admin access.')
+      setServerError('This admin account is not verified for console access yet.')
       setLoading(false)
       return
     }
