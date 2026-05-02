@@ -53,7 +53,6 @@ export default async function OfficerQueuePage() {
   const initials = (name: string | null) => name?.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2) ?? 'RV'
 
   return (
-  return (
     <div className="officer-layout-grid" style={{ display: 'grid', gridTemplateColumns: '244px 1fr', minHeight: '100vh', background: 'var(--bg)' }}>
 
       {/* Sidebar */}
