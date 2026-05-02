@@ -33,18 +33,20 @@ export default function DisputePage() {
     const supabase = createClient()
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('reports')
+      const { data, error: fetchError } = await (supabase
+        .from('reports') as any)
         .select('id, challan_id, status')
         .eq('challan_id', challanId.trim())
         .single()
 
-      if (fetchError || !data) {
+      const report = data as { id: string; status: string; challan_id: string } | null
+
+      if (fetchError || !report) {
         setError('Challan ID not found. Please check and try again.')
-      } else if (data.status === 'disputed') {
+      } else if (report.status === 'disputed') {
         setError('A dispute has already been filed for this challan.')
       } else {
-        setReportId(data.id)
+        setReportId(report.id)
         setStep('form')
       }
     } catch (err) {
@@ -63,8 +65,8 @@ export default function DisputePage() {
 
     try {
       // 1. Create dispute record
-      const { error: disputeError } = await supabase
-        .from('disputes')
+      const { error: disputeError } = await (supabase
+        .from('disputes') as any)
         .insert({
           report_id: reportId,
           contact_email: data.contact_email,
@@ -75,8 +77,8 @@ export default function DisputePage() {
       if (disputeError) throw disputeError
 
       // 2. Update report status
-      const { error: updateError } = await supabase
-        .from('reports')
+      const { error: updateError } = await (supabase
+        .from('reports') as any)
         .update({ status: 'disputed' })
         .eq('id', reportId)
 
